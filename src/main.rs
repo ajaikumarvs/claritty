@@ -1,6 +1,6 @@
 use eframe::egui;
 use std::{
-    env, ffi::{CStr, CString}, fs::File, io::Read, os::fd::OwnedFd
+    ffi::{CStr, CString}, os::fd::{AsRawFd, OwnedFd}
 };
 use sysinfo::System;
 
@@ -12,7 +12,7 @@ fn main() {
         match nix::pty::forkpty(None, None).unwrap() {
             nix::pty::ForkptyResult::Parent { master, child: _ } => master,
             nix::pty::ForkptyResult::Child => {
-                let shell_name = CStr::from_bytes_with_nul(b"bash\0")
+                let shell_name = CStr::from_bytes_with_nul(b"zsh\0")
                     .expect("This should always have a null terminator");
                 
                 std::env::remove_var("PROMPT_COMMAND");
@@ -33,7 +33,7 @@ fn main() {
 }
 struct Claritty {
     buf: Vec<u8>,
-    fd: File,
+    fd: OwnedFd,
     // Performance metrics
     frame_times: Vec<f32>, // Rolling window of frame times for FPS calculation
     last_frame_time: std::time::Instant, // Timestamp of last frame for delta calculation
@@ -48,13 +48,18 @@ impl Claritty {
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
+        let flags = nix::fcntl::fcntl(&fd, nix::fcntl::FcntlArg::F_GETFL).unwrap();
+        let mut flags = nix::fcntl::OFlag::from_bits_truncate(flags);
+        flags.insert(nix::fcntl::OFlag::O_NONBLOCK);
+        nix::fcntl::fcntl(&fd, nix::fcntl::FcntlArg::F_SETFL(flags)).unwrap();
+        
         let mut system = System::new_all();
         system.refresh_all();
         let total_cores = system.cpus().len();
 
         Claritty {
             buf: Vec::new(),
-            fd: fd.into(),
+            fd,
             frame_times: Vec::with_capacity(60),
             last_frame_time: std::time::Instant::now(),
             system,
@@ -66,6 +71,17 @@ impl Claritty {
 
 impl eframe::App for Claritty {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        
+        let mut buf = vec![0u8; 4096];
+        match nix::unistd::read(&self.fd, &mut buf) {
+            Ok(read_size) => {
+                self.buf.extend_from_slice(&buf[0..read_size]);
+            }
+            Err(e) => {
+                println!("Failed to read : {e}");
+            }
+        }
+        
         // Track frame times
         let now = std::time::Instant::now();
         let frame_time = now.duration_since(self.last_frame_time).as_secs_f32();
@@ -104,15 +120,7 @@ impl eframe::App for Claritty {
         // Calculate cores used (cpu_usage is percentage of one core, so divide by 100)
         let cores_used = cpu_usage / 100.0;
 
-        let mut buf = vec![0u8; 4096];
-        match self.fd.read(&mut buf) {
-            Ok(read_size) => {
-                self.buf.extend_from_slice(&buf[0..read_size]);
-            }
-            Err(e) => {
-                println!("Failed to read : {e}");
-            }
-        }
+       
 
         egui::CentralPanel::default().show(ctx, |ui| {
             unsafe {
