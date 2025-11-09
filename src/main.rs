@@ -1,4 +1,5 @@
 use eframe::egui;
+use nix::errno::Errno;
 use std::{
     ffi::{CStr, CString}, os::fd::{AsRawFd, OwnedFd}
 };
@@ -78,7 +79,9 @@ impl eframe::App for Claritty {
                 self.buf.extend_from_slice(&buf[0..read_size]);
             }
             Err(e) => {
+                if e != Errno::EAGAIN{
                 println!("Failed to read : {e}");
+                }
             }
         }
         
