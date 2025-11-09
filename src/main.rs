@@ -1,7 +1,7 @@
 use eframe::egui;
 use nix::errno::Errno;
 use std::{
-    ffi::{CStr, CString}, os::fd::{AsRawFd, OwnedFd}
+    ffi::{CStr, CString}, os::fd::OwnedFd
 };
 use sysinfo::System;
 
@@ -126,6 +126,23 @@ impl eframe::App for Claritty {
        
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            //Handle terminal input
+            ui.input(|input_state| {
+                for event in &input_state.events {
+                    let egui::Event::Text(text)= event else {
+                        continue;
+                    };
+                    let bytes = text.as_bytes();
+                    let mut to_write: &[u8] = bytes;
+
+                    while to_write.len() > 0 {
+                        let written = nix::unistd::write(&self.fd, to_write).unwrap();
+                        to_write = &to_write[written..];
+                    }
+                    
+                    
+                }
+            });
             unsafe {
                 //FIX : Unsafe code
                 ui.label(std::str::from_utf8_unchecked(&self.buf));
@@ -173,5 +190,8 @@ impl eframe::App for Claritty {
 
         // 4. Request continuous repaints for smooth FPS updates
         ctx.request_repaint();
+
+        
+        
     }
 }
