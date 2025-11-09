@@ -23,11 +23,12 @@ fn main() {
 struct Claritty {
     buf: Vec<u8>,
     fd: File,
-    frame_times: Vec<f32>,
-    last_frame_time: std::time::Instant,
-    system: System,
-    pid: sysinfo::Pid,
-    total_cores: usize,
+    // Performance metrics
+    frame_times: Vec<f32>,           // Rolling window of frame times for FPS calculation
+    last_frame_time: std::time::Instant, // Timestamp of last frame for delta calculation
+    system: System,                  // System info for CPU/RAM monitoring
+    pid: sysinfo::Pid,              // Current process ID
+    total_cores: usize,             // Total CPU cores available
 }
 
 impl Claritty {
