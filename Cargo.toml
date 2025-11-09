@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 eframe = "0.33.0"
 nix = { version = "0.30.1", default-features = false, features = ["term", "process"] }
+sysinfo = "0.37.2"
