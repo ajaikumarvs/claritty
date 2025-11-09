@@ -1,20 +1,22 @@
 use eframe::egui;
 use std::{
-    ffi::{CStr, CString},
-    fs::File,
-    io::Read,
-    os::fd::OwnedFd,
+    env, ffi::{CStr, CString}, fs::File, io::Read, os::fd::OwnedFd
 };
 use sysinfo::System;
 
 fn main() {
     //TODO : Optimize later with C String literals - https://doc.rust-lang.org/edition-guide/rust-2021/c-string-literals.html
     let fd = unsafe {
+
+        
         match nix::pty::forkpty(None, None).unwrap() {
             nix::pty::ForkptyResult::Parent { master, child: _ } => master,
             nix::pty::ForkptyResult::Child => {
-                let shell_name = CStr::from_bytes_with_nul(b"ash\0")
+                let shell_name = CStr::from_bytes_with_nul(b"bash\0")
                     .expect("This should always have a null terminator");
+                
+                std::env::remove_var("PROMPT_COMMAND");
+                std::env::set_var("PS1", "$ ");
                 nix::unistd::execvp::<CString>(shell_name, &[]).unwrap();
                 return;
             }
