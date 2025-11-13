@@ -1,0 +1,1 @@
+MANGOHUD_CONFIG=fps,cpu_temp,arch,core_type,cpu_load_change,display_server,font_size=24,fps_color_change,fps_limit=0,gpu_name,io_read,io_write,ram,vram,show_fps_limit,time,position=bottom-right mangohud cargo run -- --debug
