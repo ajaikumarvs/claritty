@@ -129,9 +129,12 @@ impl eframe::App for Claritty {
             //Handle terminal input
             ui.input(|input_state| {
                 for event in &input_state.events {
-                    let egui::Event::Text(text)= event else {
-                        continue;
+                    let text = match event {
+                        egui::Event::Text(text) => text.as_str(),
+                        egui::Event::Key { key: egui::Key::Enter, pressed: true, .. } => "\n",
+                        _ => continue,
                     };
+                    
                     let bytes = text.as_bytes();
                     let mut to_write: &[u8] = bytes;
 
@@ -139,8 +142,6 @@ impl eframe::App for Claritty {
                         let written = nix::unistd::write(&self.fd, to_write).unwrap();
                         to_write = &to_write[written..];
                     }
-                    
-                    
                 }
             });
             unsafe {
